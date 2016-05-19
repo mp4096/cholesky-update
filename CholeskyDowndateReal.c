@@ -8,14 +8,14 @@
 * `cholesky_downdate_real` is based on LINPACK subroutine `DCHDD`.
 * However, the (z,y,rho)-downdate is not implemented.
 *
-* `euclidean_norm_real` is based on LAPACK/BLAS subroutine `DNRM2`
+* `euclidean_norm_real` is based on LAPACK/BLAS subroutine `DNRM2`.
 *
 *
-* Copyright (c) 2011 University of Tennessee
+* Copyright (c) 2011 University of Tennessee.
 *
-* Copyright (c) 2011 University of California Berkeley
+* Copyright (c) 2011 University of California Berkeley.
 *
-* Copyright (c) 2011 University of Colorado Denver
+* Copyright (c) 2011 University of Colorado Denver.
 *
 * Copyright (c) 2011 NAG Ltd.
 *
@@ -47,6 +47,8 @@
 
 
 /* Define functions */
+/* Rank-1 Cholesky downdate */
+int cholesky_downdate_real(const mwSize n, double *R, double *x);
 /* Dot product of two real vectors */
 double dot_product_real(mwIndex size, double *x, double *y);
 /* Euclidean norm of a real vector */
