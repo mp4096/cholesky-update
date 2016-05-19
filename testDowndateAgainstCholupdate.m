@@ -60,12 +60,20 @@ for i = 1 : 1 : numTrials
     if (statusMEX == 0) && (statusMATLAB == 0)
         idx = idx + 1;
         
-        absError(idx) = norm(RNewMATLAB - RNewMEX, 'fro');
-        relError(idx) = absError(idx)/norm(RNewMATLAB, 'fro');
+        exactPNew = R'*R - x*x';
+        absErrorMATLAB(i) = norm(RNewMATLAB'*RNewMATLAB - exactPNew, 'fro');
+        relErrorMATLAB(i) = absErrorMATLAB(i)/norm(exactPNew, 'fro');
         
-        fprintf('Absolute error: %.4e\n', absError(idx));
-        fprintf('Relative error: %.4e\n', relError(idx));
+        absErrorMEX(i) = norm(RNewMEX'*RNewMEX - exactPNew, 'fro');
+        relErrorMEX(i) = absErrorMEX(i)/norm(exactPNew, 'fro');
+        
+        fprintf('MEX absolute error: %.4e\n', absErrorMEX(i));
+        fprintf('MEX relative error: %.4e\n', relErrorMEX(i));
         fprintf('\n');
+        fprintf('MATLAB absolute error: %.4e\n', absErrorMATLAB(i));
+        fprintf('MATLAB relative error: %.4e\n', relErrorMATLAB(i));
+        fprintf('\n\n');
+        
     elseif (statusMEX == -1) && (statusMATLAB == 1)
         fprintf('Could not downdate!\n\n');
     else
@@ -88,5 +96,8 @@ fprintf('Mean MEX runtime:    %12.4f ms\n', timeMEX*1e3/numSuccessful);
 fprintf('Mean MATLAB runtime: %12.4f ms\n', timeMATLAB*1e3/numSuccessful);
 fprintf('Speedup:             %12.4f x\n', timeMATLAB/timeMEX);
 fprintf('\n');
-fprintf('Mean absolute error: %.4e\n', mean(absError));
-fprintf('Mean relative error: %.4e\n', mean(relError));
+fprintf('Max MEX absolute error:  %.4e\n', max(absErrorMEX));
+fprintf('Max MEX relative error:  %.4e\n', max(relErrorMEX));
+fprintf('\n');
+fprintf('Max MATLAB absolute error:  %.4e\n', max(absErrorMATLAB));
+fprintf('Max MATLAB relative error:  %.4e\n', max(relErrorMATLAB));
