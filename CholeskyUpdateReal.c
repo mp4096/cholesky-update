@@ -5,7 +5,7 @@
 * for MATLAB's `cholupdate` if code generation is required.
 *
 *
-* `cholesky_update_real` is based on LINPACK subroutine `DCHDD`.
+* `cholesky_update_real` is based on LINPACK subroutine `DCHUD`.
 * However, the (z,y,rho)-update is not implemented.
 *
 * `givens_rotation_real` is based on LAPACK/BLAS subroutine `DROTG`.
