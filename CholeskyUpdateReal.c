@@ -136,12 +136,6 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
 
 void cholesky_update_real(const mwSize n, double *R, double *x)
 {
-    /*
-    * This function returns:
-    *  0 if successful;
-    * -1 if the updated matrix is not positive definite
-    */
-
     /* Vector with cosines of the transforming rotations */
     double *c = NULL;
     /* Vector with sines of the transforming rotations */
