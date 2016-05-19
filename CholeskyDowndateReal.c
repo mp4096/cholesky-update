@@ -175,8 +175,8 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
         {
             /* Throw an error and exit */
             mexErrMsgIdAndTxt(
-                "CholeskyDowndateReal:CannotDowndate",
-                "R could not be downdated!");
+                "CholeskyDowndateReal:downdatedMatrixNotPosDef",
+                "Downdated matrix must be positive definite.");
                 return;
         }
         else
@@ -194,7 +194,7 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
         /* This _cannot_ happen. */
         mexErrMsgIdAndTxt(
             "CholeskyDowndateReal:UnknownError",
-            "Something very bad happened!");
+            "Something very bad happened.");
         return;
     }
 }
