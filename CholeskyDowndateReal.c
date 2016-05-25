@@ -48,7 +48,7 @@
 
 /* Define functions */
 /* Rank-1 Cholesky downdate */
-int cholesky_downdate_real(const mwSize n, double *R, double *x);
+int cholesky_downdate_real(const mwSize n, double *R, const mwSize num_updates, double *x);
 /* Dot product of two real vectors */
 double dot_product_real(mwIndex size, double *x, double *y);
 /* Euclidean norm of a real vector */
@@ -142,14 +142,6 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
             "R must be a square matrix.");
         return;
     }
-    /* Check if x is a column vector */
-    if (size_x[1] != 1)
-    {
-        mexErrMsgIdAndTxt(
-            "CholeskyDowndateReal:InvalidInput",
-            "x must be a column vector.");
-        return;
-    }
     /* Check if dimensions of the R and x are consistent */
     if (size_R[1] != size_x[0])
     {
@@ -161,7 +153,7 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
 
 
     /* Call the Cholesky downdate */
-    status = cholesky_downdate_real(size_R[0], R_upd, x);
+    status = cholesky_downdate_real(size_R[0], R_upd, size_x[1], x);
 
 
     if (status == 0)
@@ -200,7 +192,7 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
 }
 
 
-int cholesky_downdate_real(const mwSize n, double *R, double *x)
+int cholesky_downdate_real(const mwSize n, double *R, const mwSize num_updates, double *x)
 {
     /*
     * This function returns:
@@ -219,7 +211,7 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x)
     double scale, alpha, xx, t, a, b, norm;
 
     /* for-loop counters */
-    mwIndex i, j;
+    mwIndex i, j, update_idx;
 
 
     /* Allocate memory for the vectors with sines and cosines */
@@ -227,62 +219,64 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x)
     s = (double *) mxMalloc(n*sizeof(double));
 
 
-    /* Solve the system R^T*a = x, placing the result in the vector `s` */
-
-    /* Solve for the first element */
-    /* `*(r + n*0 + 0)` is simply the matrix entry R(1, 1) */
-    s[0] = x[0]/(*(R + n*0 + 0));
-
-    for (j = 1; j < n; ++j)
+    for (update_idx = 0; update_idx < num_updates; ++update_idx)
     {
-        s[j] = x[j] - dot_product_real(j, (R + j*n), s);
-        s[j] /= *(R + n*j + j);
-    }
+        /* Solve the system R^T*a = x, placing the result in the vector `s` */
 
-    norm = euclidean_norm_real(n, s);
+        /* Solve for the first element */
+        /* `*(r + n*0 + 0)` is simply the matrix entry R(1, 1) */
+        s[0] = x[0 + n*update_idx]/(*(R + n*0 + 0));
 
-    if (norm >= 1.0)
-    {
-        /* The downdated matrix is not positive definite */
-        return -1;
-    }
-
-    alpha = sqrt(1.0 - norm*norm);
-
-
-    /* Determine the transformations */
-    for (i = (n - 1); i >= 0; --i)
-    {
-        scale = alpha + fabs(s[i]);
-        a = alpha/scale;
-        b = s[i]/scale;
-        norm = hypot(a, b);
-        c[i] = a/norm;
-        s[i] = b/norm;
-        alpha = scale*norm;
-    }
-
-
-    /* Apply the transformations to r */
-    for (j = 0; j < n; ++j)
-    {
-        xx = 0.0;
-        for (i = j; i >= 0; --i)
+        for (j = 1; j < n; ++j)
         {
-            /*
-            * Target R_ij to the matrix entry R(i + 1, j + 1)
-            * IMPORTANT:
-            * R is in the column major notation!
-            * (since it was copied from MATLAB)
-            */
-            R_ij = R + j*n + i;
+            s[j] = x[j + n*update_idx] - dot_product_real(j, (R + j*n), s);
+            s[j] /= *(R + n*j + j);
+        }
 
-            t = xx*c[i] + (*R_ij)*s[i];
-            *R_ij = (*R_ij)*c[i] - xx*s[i];
-            xx = t;
+        norm = euclidean_norm_real(n, s);
+
+        if (norm >= 1.0)
+        {
+            /* The downdated matrix is not positive definite */
+            return -1;
+        }
+
+        alpha = sqrt(1.0 - norm*norm);
+
+
+        /* Determine the transformations */
+        for (i = (n - 1); i >= 0; --i)
+        {
+            scale = alpha + fabs(s[i]);
+            a = alpha/scale;
+            b = s[i]/scale;
+            norm = hypot(a, b);
+            c[i] = a/norm;
+            s[i] = b/norm;
+            alpha = scale*norm;
+        }
+
+
+        /* Apply the transformations to r */
+        for (j = 0; j < n; ++j)
+        {
+            xx = 0.0;
+            for (i = j; i >= 0; --i)
+            {
+                /*
+                * Target R_ij to the matrix entry R(i + 1, j + 1)
+                * IMPORTANT:
+                * R is in the column major notation!
+                * (since it was copied from MATLAB)
+                */
+                R_ij = R + j*n + i;
+
+                t = xx*c[i] + (*R_ij)*s[i];
+                *R_ij = (*R_ij)*c[i] - xx*s[i];
+                xx = t;
+            }
         }
     }
-
 
     /* Free memory */
     mxFree(c);

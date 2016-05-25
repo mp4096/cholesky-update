@@ -10,6 +10,9 @@ N = 400;
 % Number of trials
 numTrials = 100;
 
+% Number of downdates
+numDowndates = 10;
+
 % Initialise time counters
 timeMATLAB = 0;
 timeMEX = 0;
@@ -24,7 +27,7 @@ absErrorMEX = zeros(numTrials, 1);
 idx = 0;
 
 % Scaling of the x vector. Small values lead to more successful downdates.
-xScale = 1;
+xScale = 1e-2;
 
 
 for i = 1 : 1 : numTrials
@@ -45,10 +48,18 @@ for i = 1 : 1 : numTrials
     R = chol(P, 'upper');
     
     % Get a random downdate vector
-    x = xScale*(rand(N, 1) - 0.5).*(10.^((rand(N, 1) - 0.5)));
+    x = xScale* ...
+        (rand(N, numDowndates) - 0.5).* ...
+        (10.^((rand(N, numDowndates) - 0.5)));
     
     ticMATLAB = tic;
-    [RNewMATLAB, statusMATLAB] = cholupdate(R, x, '-');
+    RNewMATLAB = R;
+    for k = 1 : 1 : numDowndates
+        [RNewMATLAB, statusMATLAB] = cholupdate(RNewMATLAB, x(:, k), '-');
+        if statusMATLAB == 1
+            break
+        end
+    end
     if statusMATLAB == 0
         timeMATLAB = timeMATLAB + toc(ticMATLAB);
     end
@@ -62,7 +73,11 @@ for i = 1 : 1 : numTrials
     if (statusMEX == 0) && (statusMATLAB == 0)
         idx = idx + 1;
         
-        exactPNew = R'*R - x*x';
+        exactPNew = R'*R;
+        for k = 1 : 1 : numDowndates
+            exactPNew = exactPNew - x(:, k)*x(:, k)';
+        end
+        
         absErrorMATLAB(i) = norm(RNewMATLAB'*RNewMATLAB - exactPNew, 'fro');
         relErrorMATLAB(i) = absErrorMATLAB(i)/norm(exactPNew, 'fro');
         
