@@ -15,8 +15,10 @@ timeMATLAB = 0;
 timeMEX = 0;
 
 % Initialise error counters
-relError = zeros(numTrials, 1);
-absError = zeros(numTrials, 1);
+relErrorMATLAB = zeros(numTrials, 1);
+absErrorMATLAB = zeros(numTrials, 1);
+relErrorMEX = zeros(numTrials, 1);
+absErrorMEX = zeros(numTrials, 1);
 
 % Initialise the counters for successful updates
 idx = 0;
@@ -84,8 +86,10 @@ end
 
 
 numSuccessful = idx;
-absError(numSuccessful + 1 : 1 : end) = [];
-relError(numSuccessful + 1 : 1 : end) = [];
+absErrorMATLAB(numSuccessful + 1 : 1 : end) = [];
+relErrorMATLAB(numSuccessful + 1 : 1 : end) = [];
+absErrorMEX(numSuccessful + 1 : 1 : end) = [];
+relErrorMEX(numSuccessful + 1 : 1 : end) = [];
 
 
 fprintf('Total trials:        %12i\n', numTrials);
