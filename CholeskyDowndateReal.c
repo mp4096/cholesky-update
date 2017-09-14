@@ -29,7 +29,6 @@
 *                     Technical University of Munich.
 */
 
-
 /*
 * Notice on compiler portability:
 * Microsoft Windows SDK 7.1 seems to have problems with `math.h`.
@@ -41,9 +40,9 @@
 */
 
 
-#include <math.h> /* sqrt, fabs, hypot */
-#include "mex.h" /* MEX functions and types */
 #include "matrix.h" /* mwIndex, mwSize */
+#include "mex.h"    /* MEX functions and types */
+#include <math.h>   /* sqrt, fabs, hypot */
 
 
 /* Define functions */
@@ -56,8 +55,7 @@ double euclidean_norm_real(mwIndex size, double *x);
 
 
 /* Entry point for the MEX interface */
-void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
-{
+void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
     /*
     * Cholesky downdate status:
     *  0 if successful;
@@ -79,34 +77,25 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
     */
     bool exit_on_error;
 
-
     /* Check if the number of input arguments is OK */
-    if (nrhs != 2)
-    {
+    if (nrhs != 2) {
         mexErrMsgIdAndTxt(
             "CholeskyDowndateReal:InvalidInput",
             "Invalid number of input arguments. Please supply R and x.");
         return;
     }
 
-
     /* Check the number of output arguments */
-    if (nlhs == 1)
-    {
+    if (nlhs == 1) {
         exit_on_error = true;
-    }
-    else if (nlhs == 2)
-    {
+    } else if (nlhs == 2) {
         exit_on_error = false;
-    }
-    else
-    {
+    } else {
         mexErrMsgIdAndTxt(
             "CholeskyDowndateReal:InvalidCall",
             "Invalid number of output arguments: only 1 or 2 allowed.");
         return;
     }
-
 
     /*
     * Perform a deep copy of the first input (matrix `R`).
@@ -121,8 +110,7 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
     /* Target the `x` pointer to the second input argument */
     x = mxGetPr(prhs[1]);
 
-    if (!exit_on_error)
-    {
+    if (!exit_on_error) {
         /* Target the `status_out` pointer to the second output value */
         plhs[1] = mxCreateDoubleScalar(mxREAL);
         /* Target the `status_out` pointer to the second output value */
@@ -133,75 +121,55 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
     size_R = mxGetDimensions(prhs[0]);
     size_x = mxGetDimensions(prhs[1]);
 
-
     /* Check if R is square */
-    if (size_R[0] != size_R[1])
-    {
-        mexErrMsgIdAndTxt(
-            "CholeskyDowndateReal:InvalidInput",
-            "R must be a square matrix.");
+    if (size_R[0] != size_R[1]) {
+        mexErrMsgIdAndTxt("CholeskyDowndateReal:InvalidInput",
+                          "R must be a square matrix.");
         return;
     }
     /* Check if x is a column vector */
-    if (size_x[1] != 1)
-    {
-        mexErrMsgIdAndTxt(
-            "CholeskyDowndateReal:InvalidInput",
-            "x must be a column vector.");
+    if (size_x[1] != 1) {
+        mexErrMsgIdAndTxt("CholeskyDowndateReal:InvalidInput",
+                          "x must be a column vector.");
         return;
     }
     /* Check if dimensions of the R and x are consistent */
-    if (size_R[1] != size_x[0])
-    {
-        mexErrMsgIdAndTxt(
-            "CholeskyDowndateReal:InvalidInput",
-            "R and x must have the same size.");
+    if (size_R[1] != size_x[0]) {
+        mexErrMsgIdAndTxt("CholeskyDowndateReal:InvalidInput",
+                          "R and x must have the same size.");
         return;
     }
-
 
     /* Call the Cholesky downdate */
     status = cholesky_downdate_real(size_R[0], R_upd, x);
 
-
-    if (status == 0)
-    {
+    if (status == 0) {
         /* Everything OK */
         return;
-    }
-    else if (status == -1)
-    {
-        if (exit_on_error)
-        {
+    } else if (status == -1) {
+        if (exit_on_error) {
             /* Throw an error and exit */
-            mexErrMsgIdAndTxt(
-                "CholeskyDowndateReal:downdatedMatrixNotPosDef",
-                "Downdated matrix must be positive definite.");
-                return;
-        }
-        else
-        {
+            mexErrMsgIdAndTxt("CholeskyDowndateReal:downdatedMatrixNotPosDef",
+                              "Downdated matrix must be positive definite.");
+            return;
+        } else {
             /*
             * Supply the error status and return.
             * Returned `R_upd` is equal to `R`.
             */
-            *status_out = (double) status;
+            *status_out = (double)status;
             return;
         }
-    }
-    else
-    {
+    } else {
         /* This _cannot_ happen. */
-        mexErrMsgIdAndTxt(
-            "CholeskyDowndateReal:UnknownError",
-            "Something very bad happened.");
+        mexErrMsgIdAndTxt("CholeskyDowndateReal:UnknownError",
+                          "Something very bad happened.");
         return;
     }
 }
 
 
-int cholesky_downdate_real(const mwSize n, double *R, double *x)
-{
+int cholesky_downdate_real(const mwSize n, double *R, double *x) {
     /*
     * This function returns:
     *  0 if successful;
@@ -221,136 +189,113 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x)
     /* for-loop counters */
     mwIndex i, j;
 
-
     /* Allocate memory for the vectors with sines and cosines */
-    c = (double *) mxMalloc(n*sizeof(double));
-    s = (double *) mxMalloc(n*sizeof(double));
-
+    c = (double *)mxMalloc(n * sizeof(double));
+    s = (double *)mxMalloc(n * sizeof(double));
 
     /* Solve the system R^T*a = x, placing the result in the vector `s` */
 
     /* Solve for the first element */
     /* `*(r + n*0 + 0)` is simply the matrix entry R(1, 1) */
-    s[0] = x[0]/(*(R + n*0 + 0));
+    s[0] = x[0] / (*(R + n * 0 + 0));
 
-    for (j = 1; j < n; ++j)
-    {
-        s[j] = x[j] - dot_product_real(j, (R + j*n), s);
-        s[j] /= *(R + n*j + j);
+    for (j = 1; j < n; ++j) {
+        s[j] = x[j] - dot_product_real(j, (R + j * n), s);
+        s[j] /= *(R + n * j + j);
     }
 
     norm = euclidean_norm_real(n, s);
 
-    if (norm >= 1.0)
-    {
+    if (norm >= 1.0) {
         /* The downdated matrix is not positive definite */
         return -1;
     }
 
-    alpha = sqrt(1.0 - norm*norm);
-
+    alpha = sqrt(1.0 - norm * norm);
 
     /* Determine the transformations */
-    for (i = (n - 1); i >= 0; --i)
-    {
+    for (i = (n - 1); i >= 0; --i) {
         scale = alpha + fabs(s[i]);
-        a = alpha/scale;
-        b = s[i]/scale;
+        a = alpha / scale;
+        b = s[i] / scale;
         norm = hypot(a, b);
-        c[i] = a/norm;
-        s[i] = b/norm;
-        alpha = scale*norm;
+        c[i] = a / norm;
+        s[i] = b / norm;
+        alpha = scale * norm;
     }
 
-
     /* Apply the transformations to r */
-    for (j = 0; j < n; ++j)
-    {
+    for (j = 0; j < n; ++j) {
         xx = 0.0;
-        for (i = j; i >= 0; --i)
-        {
+        for (i = j; i >= 0; --i) {
             /*
             * Target R_ij to the matrix entry R(i + 1, j + 1)
             * IMPORTANT:
             * R is in the column major notation!
             * (since it was copied from MATLAB)
             */
-            R_ij = R + j*n + i;
+            R_ij = R + j * n + i;
 
-            t = xx*c[i] + (*R_ij)*s[i];
-            *R_ij = (*R_ij)*c[i] - xx*s[i];
+            t = xx * c[i] + (*R_ij) * s[i];
+            *R_ij = (*R_ij) * c[i] - xx * s[i];
             xx = t;
         }
     }
 
-
     /* Free memory */
     mxFree(c);
     mxFree(s);
-
 
     /* Everything OK */
     return 0;
 }
 
 
-double dot_product_real(const mwIndex size, double *x, double *y)
-{
+double dot_product_real(const mwIndex size, double *x, double *y) {
     /* Initialise return value for the dot product */
     double res = 0.0;
     /* for-loop counter */
     mwIndex i;
 
-    for (i = 0; i < size; ++i)
-    {
-        res += x[i]*y[i];
+    for (i = 0; i < size; ++i) {
+        res += x[i] * y[i];
     }
 
     return res;
 }
 
 
-double euclidean_norm_real(mwIndex size, double *x)
-{
+double euclidean_norm_real(mwIndex size, double *x) {
     /* Intermediate variables for the numerical black magic */
     double scale, ssq, abs_curr_x;
     /* for-loop counter */
     mwIndex i;
 
-
     /* Handle trivial cases */
-    if (size < 1)
-    {
+    if (size < 1) {
         return 0.0;
     }
-    if (size == 0)
-    {
+    if (size == 0) {
         return fabs(x[0]);
     }
-
 
     /* Initialise */
     scale = 0.0;
     ssq = 1.0;
 
     /* Inlined `DLASSQ` */
-    for (i = 0; i < size; ++i)
-    {
-        if (x[i] != 0.0)
-        {
+    for (i = 0; i < size; ++i) {
+        if (x[i] != 0.0) {
             abs_curr_x = fabs(x[i]);
 
-            if (scale < abs_curr_x)
-            {
-                ssq = 1.0 + ssq*(scale/abs_curr_x)*(scale/abs_curr_x);
+            if (scale < abs_curr_x) {
+                ssq = 1.0 + ssq * (scale / abs_curr_x) * (scale / abs_curr_x);
                 scale = abs_curr_x;
-            }
-            else
-            {
-                ssq += (abs_curr_x/scale)*(abs_curr_x/scale);
+            } else {
+                ssq += (abs_curr_x / scale) * (abs_curr_x / scale);
             }
         }
     }
 
-    return scale*sqrt(ssq);
+    return scale * sqrt(ssq);
 }

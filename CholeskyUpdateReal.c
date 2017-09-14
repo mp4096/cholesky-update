@@ -29,7 +29,6 @@
 *                     Technical University of Munich.
 */
 
-
 /*
 * Notice on compiler portability:
 * Microsoft Windows SDK 7.1 seems to have problems with `math.h`.
@@ -41,9 +40,9 @@
 */
 
 
-#include <math.h> /* sqrt, fabs, hypot */
-#include "mex.h" /* MEX functions and types */
 #include "matrix.h" /* mwIndex, mwSize */
+#include "mex.h"    /* MEX functions and types */
+#include <math.h>   /* sqrt, fabs, hypot */
 
 
 /* Define functions */
@@ -54,8 +53,7 @@ void givens_rotation_real(double *a, double *b, double *c, double *s);
 
 
 /* Entry point for the MEX interface */
-void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
-{
+void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
     /* Pointer to the copied and updated Cholesky factor */
     double *R_upd = NULL;
     /* Pointer to the input vector `x` */
@@ -63,26 +61,21 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
     /* Arrays for the size of input arguments */
     const mwSize *size_x, *size_R;
 
-
     /* Check if the number of input arguments is OK */
-    if (nrhs != 2)
-    {
+    if (nrhs != 2) {
         mexErrMsgIdAndTxt(
             "CholeskyUpdateReal:InvalidInput",
             "Invalid number of input arguments. Please supply R and x.");
         return;
     }
 
-
     /* Check the number of output arguments */
-    if (nlhs != 1)
-    {
+    if (nlhs != 1) {
         mexErrMsgIdAndTxt(
             "CholeskyUpdateReal:InvalidCall",
             "Invalid number of output arguments: only 1 or 2 allowed.");
         return;
     }
-
 
     /*
     * Perform a deep copy of the first input (matrix `R`).
@@ -101,41 +94,31 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs)
     size_R = mxGetDimensions(prhs[0]);
     size_x = mxGetDimensions(prhs[1]);
 
-
     /* Check if R is square */
-    if (size_R[0] != size_R[1])
-    {
-        mexErrMsgIdAndTxt(
-            "CholeskyUpdateReal:InvalidInput",
-            "R must be a square matrix.");
+    if (size_R[0] != size_R[1]) {
+        mexErrMsgIdAndTxt("CholeskyUpdateReal:InvalidInput",
+                          "R must be a square matrix.");
         return;
     }
     /* Check if x is a column vector */
-    if (size_x[1] != 1)
-    {
-        mexErrMsgIdAndTxt(
-            "CholeskyUpdateReal:InvalidInput",
-            "x must be a column vector.");
+    if (size_x[1] != 1) {
+        mexErrMsgIdAndTxt("CholeskyUpdateReal:InvalidInput",
+                          "x must be a column vector.");
         return;
     }
     /* Check if dimensions of the R and x are consistent */
-    if (size_R[1] != size_x[0])
-    {
-        mexErrMsgIdAndTxt(
-            "CholeskyUpdateReal:InvalidInput",
-            "R and x must have the same size.");
+    if (size_R[1] != size_x[0]) {
+        mexErrMsgIdAndTxt("CholeskyUpdateReal:InvalidInput",
+                          "R and x must have the same size.");
         return;
     }
 
-
     /* Call the Cholesky update */
     cholesky_update_real(size_R[0], R_upd, x);
-
 }
 
 
-void cholesky_update_real(const mwSize n, double *R, double *x)
-{
+void cholesky_update_real(const mwSize n, double *R, double *x) {
     /* Vector with cosines of the transforming rotations */
     double *c = NULL;
     /* Vector with sines of the transforming rotations */
@@ -149,85 +132,70 @@ void cholesky_update_real(const mwSize n, double *R, double *x)
     /* for-loop counters */
     mwIndex i, j;
 
-
     /* Allocate memory for the vectors with sines and cosines */
-    c = (double *) mxMalloc(n*sizeof(double));
-    s = (double *) mxMalloc(n*sizeof(double));
-
+    c = (double *)mxMalloc(n * sizeof(double));
+    s = (double *)mxMalloc(n * sizeof(double));
 
     /* Update `R` */
-    for (j = 0; j < n; ++j)
-    {
+    for (j = 0; j < n; ++j) {
         xj = x[j];
 
         /* Apply the previous rotations */
-        for (i = 0; i < j; ++i)
-        {
+        for (i = 0; i < j; ++i) {
             /*
             * Target R_ij to the matrix entry R(i + 1, j + 1)
             * IMPORTANT:
             * R is in the column major notation!
             * (since it was copied from MATLAB)
             */
-            R_ij = R + j*n + i;
+            R_ij = R + j * n + i;
 
-            t = (*R_ij)*c[i] + xj*s[i];
-            xj = xj*c[i] - (*R_ij)*s[i];
+            t = (*R_ij) * c[i] + xj * s[i];
+            xj = xj * c[i] - (*R_ij) * s[i];
             *R_ij = t;
         }
 
         /* Compute the next rotation */
-        givens_rotation_real((R + j*n + j), &xj, (c + j), (s + j));
+        givens_rotation_real((R + j * n + j), &xj, (c + j), (s + j));
     }
-
 
     /* Free memory */
     mxFree(c);
     mxFree(s);
 
-
     return;
 }
 
 
-void givens_rotation_real(double *a, double *b, double *c, double *s)
-{
+void givens_rotation_real(double *a, double *b, double *c, double *s) {
     double r, z, roe, scale;
 
-    if (fabs(*a) > fabs(*b))
-    {
+    if (fabs(*a) > fabs(*b)) {
         roe = *a;
-    }
-    else
-    {
+    } else {
         roe = *b;
     }
 
     scale = fabs(*a) + fabs(*b);
 
-    if (scale == 0.0)
-    {
+    if (scale == 0.0) {
         *c = 1.0;
         *s = 0.0;
         r = 0.0;
         z = 0.0;
-    }
-    else
-    {
-        r = scale*hypot((*a/scale), (*b/scale));
+    } else {
+        r = scale * hypot((*a / scale), (*b / scale));
         r = copysign(r, roe);
 
-        *c = (*a)/r;
-        *s = (*b)/r;
+        *c = (*a) / r;
+        *s = (*b) / r;
 
         z = 1.0;
-        if (fabs(*a) > fabs(*b))
-        {
+        if (fabs(*a) > fabs(*b)) {
             z = *s;
         }
-        if ((fabs(*a) >= fabs(*b)) && (*c != 0.0))
-        {
-            z = 1.0/(*c);
+        if ((fabs(*a) >= fabs(*b)) && (*c != 0.0)) {
+            z = 1.0 / (*c);
         }
     }
 
