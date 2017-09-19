@@ -47,7 +47,7 @@
 
 /* Define functions */
 /* Rank-1 Cholesky update */
-void cholesky_update_real(const mwSize n, double *R, double *x);
+int cholesky_update_real(const mwSize n, double *R, double *x);
 /* Real Givens rotation */
 void givens_rotation_real(double *a, double *b, double *c, double *s);
 
@@ -60,6 +60,8 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
     double *x = NULL;
     /* Arrays for the size of input arguments */
     const mwSize *size_x, *size_R;
+    /* Return code of the Cholesky update */
+    int retval;
 
     /* Check if the number of input arguments is OK */
     if (nrhs != 2) {
@@ -114,11 +116,23 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
     }
 
     /* Call the Cholesky update */
-    cholesky_update_real(size_R[0], R_upd, x);
+    retval = cholesky_update_real(size_R[0], R_upd, x);
+    if (retval == 0) {
+        /* Everything ok */
+        return;
+    } else if (retval == 1) {
+        mexErrMsgIdAndTxt("CholeskyUpdateReal:AllocateError",
+                          "Could not allocate memory.");
+        return;
+    } else {
+        mexErrMsgIdAndTxt("CholeskyUpdateReal:UnknownError",
+                          "Unknown error occurred.");
+        return;
+    }
 }
 
 
-void cholesky_update_real(const mwSize n, double *R, double *x) {
+int cholesky_update_real(const mwSize n, double *R, const double *x) {
     /* Vector with cosines of the transforming rotations */
     double *c = NULL;
     /* Vector with sines of the transforming rotations */
@@ -134,14 +148,20 @@ void cholesky_update_real(const mwSize n, double *R, double *x) {
 
     /* Allocate memory for the vectors with sines and cosines */
     c = (double *)mxMalloc(n * sizeof(double));
+    if (c == NULL) {
+        return 1;
+    }
     s = (double *)mxMalloc(n * sizeof(double));
+    if (s == NULL) {
+        return 1;
+    }
 
     /* Update `R` */
-    for (j = 0; j < n; ++j) {
+    for (j = 0; j < n; j++) {
         xj = x[j];
 
         /* Apply the previous rotations */
-        for (i = 0; i < j; ++i) {
+        for (i = 0; i < j; i++) {
             /*
             * Target R_ij to the matrix entry R(i + 1, j + 1)
             * IMPORTANT:
@@ -163,7 +183,7 @@ void cholesky_update_real(const mwSize n, double *R, double *x) {
     mxFree(c);
     mxFree(s);
 
-    return;
+    return 0;
 }
 
 
