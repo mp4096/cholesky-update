@@ -187,7 +187,7 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x) {
     double scale, alpha, xx, t, a, b, norm;
 
     /* for-loop counters */
-    mwIndex i, j;
+    mwIndex i, j, k;
 
     /* Allocate memory for the vectors with sines and cosines */
     c = (double *)mxMalloc(n * sizeof(double));
@@ -214,7 +214,8 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x) {
     alpha = sqrt(1.0 - norm * norm);
 
     /* Determine the transformations */
-    for (i = (n - 1); i >= 0; --i) {
+    for (j = 0; j < n; ++j) {
+    	i = n - 1 - j;
         scale = alpha + fabs(s[i]);
         a = alpha / scale;
         b = s[i] / scale;
@@ -227,7 +228,8 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x) {
     /* Apply the transformations to r */
     for (j = 0; j < n; ++j) {
         xx = 0.0;
-        for (i = j; i >= 0; --i) {
+        for (k = 0; k <= j; k++) {
+        	i = j - k;
             /*
             * Target R_ij to the matrix entry R(i + 1, j + 1)
             * IMPORTANT:
