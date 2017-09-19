@@ -47,27 +47,17 @@
 
 // Define functions
 // Rank-1 Cholesky downdate
-int cholesky_downdate_real(const mwSize n, double *R, double *x);
+int cholesky_downdate_real(const mwSize n, double *R, const double *x);
 // Dot product of two real vectors
-double dot_product_real(mwIndex size, double *x, double *y);
+double dot_product_real(const mwIndex size, const double *x, const double *y);
 // Euclidean norm of a real vector
-double euclidean_norm_real(mwIndex size, double *x);
+double euclidean_norm_real(const mwIndex size, const double *x);
 
 
 // Entry point for the MEX interface
 void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
-    // Cholesky downdate status:
-    //  0 if successful;
-    // -1 if the downdated matrix is not positive definite
-    int status;
-    // Pointer to the copied and updated Cholesky factor
-    double *R_upd = NULL;
-    // Pointer to the input vector `x`
-    double *x = NULL;
     // Pointer to the status output
     double *status_out = NULL;
-    // Arrays for the size of input arguments
-    const mwSize *size_x, *size_R;
     // Exit on error?
     // If `true`, then throw an error if the matrix could not be downdated.
     // If `false`, continue on error, but supply a status output.
@@ -98,11 +88,11 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
     // copy-on-write nature of MATLAB. We have to copy `R` and modified the
     // copied array in-place.
     plhs[0] = mxDuplicateArray(prhs[0]);
-    // Target the `R_upd` pointer to the freshly created output value
-    R_upd = mxGetPr(plhs[0]);
+    // Target the `R_upd` pointer to the freshly created output value (downdated Cholesky factor)
+    double *R_upd = mxGetPr(plhs[0]);
 
-    // Target the `x` pointer to the second input argument
-    x = mxGetPr(prhs[1]);
+    // Target the `x` pointer to the second input argument (vector `x`)
+    const double *x = mxGetPr(prhs[1]);
 
     if (!exit_on_error) {
         // Target the `status_out` pointer to the second output value
@@ -112,8 +102,8 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
     }
 
     // Get size of the inputs
-    size_R = mxGetDimensions(prhs[0]);
-    size_x = mxGetDimensions(prhs[1]);
+    const mwSize *size_R = mxGetDimensions(prhs[0]);
+    const mwSize *size_x = mxGetDimensions(prhs[1]);
 
     // Check if R is square
     if (size_R[0] != size_R[1]) {
@@ -135,7 +125,7 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
     }
 
     // Call the Cholesky downdate
-    status = cholesky_downdate_real(size_R[0], R_upd, x);
+    int status = cholesky_downdate_real(size_R[0], R_upd, x);
 
     if (status == 0) {
         // Everything OK
@@ -152,6 +142,18 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
             *status_out = (double)status;
             return;
         }
+    } else if (status == 1) {
+        if (exit_on_error) {
+            // Throw an error and exit
+            mexErrMsgIdAndTxt("CholeskyDowndateReal:AllocateError",
+                              "Could not allocate memory.");
+            return;
+        } else {
+            // Supply the error status and return.
+            // Returned `R_upd` is equal to `R`.
+            *status_out = (double)status;
+            return;
+        }
     } else {
         // This _cannot_ happen.
         mexErrMsgIdAndTxt("CholeskyDowndateReal:UnknownError",
@@ -161,27 +163,22 @@ void mexFunction(int nlhs, mxArray **plhs, int nrhs, const mxArray **prhs) {
 }
 
 
-int cholesky_downdate_real(const mwSize n, double *R, double *x) {
+int cholesky_downdate_real(const mwSize n, double *R, const double *x) {
     // This function returns:
     //  0 if successful;
-    // -1 if the downdated matrix is not positive definite
+    // -1 if the downdated matrix is not positive definite;
+    //  1 if could not allocate memory for temp arrays;
 
-    // Vector with cosines of the transforming rotations
-    double *c = NULL;
-    // Vector with sines of the transforming rotations
-    double *s = NULL;
-    // Pointer to a specific matrix entry -- just a shortcut
-    double *R_ij = NULL;
-
-    // Intermediate variables for the downdate algorithm
-    double scale, alpha, xx, t, a, b, norm;
-
-    // for-loop counters
-    mwIndex i, j, k;
-
-    // Allocate memory for the vectors with sines and cosines
-    c = (double *)mxMalloc(n * sizeof(double));
-    s = (double *)mxMalloc(n * sizeof(double));
+    // Allocate memory for the vectors with the cosines of transforming rotations
+    double *c = mxMalloc(n * sizeof(double));
+    if (c == NULL) {
+        return 1;
+    }
+    // Allocate memory for the vectors with the sines of transforming rotations
+    double *s = mxMalloc(n * sizeof(double));
+    if (s == NULL) {
+        return 1;
+    }
 
     // Solve the system R^T*a = x, placing the result in the vector `s`
 
@@ -189,44 +186,42 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x) {
     // `*(r + n*0 + 0)` is simply the matrix entry R(1, 1)
     s[0] = x[0] / (*(R + n * 0 + 0));
 
-    for (j = 1; j < n; ++j) {
+    for (mwIndex j = 1; j < n; j++) {
         s[j] = x[j] - dot_product_real(j, (R + j * n), s);
         s[j] /= *(R + n * j + j);
     }
 
-    norm = euclidean_norm_real(n, s);
-
+    const double norm = euclidean_norm_real(n, s);
     if (norm >= 1.0) {
         // The downdated matrix is not positive definite
         return -1;
     }
-
-    alpha = sqrt(1.0 - norm * norm);
+    double alpha = sqrt(1.0 - norm * norm);
 
     // Determine the transformations
-    for (j = 0; j < n; ++j) {
-    	i = n - 1 - j;
-        scale = alpha + fabs(s[i]);
-        a = alpha / scale;
-        b = s[i] / scale;
-        norm = hypot(a, b);
-        c[i] = a / norm;
-        s[i] = b / norm;
-        alpha = scale * norm;
+    for (mwIndex j = 0; j < n; j++) {
+        const mwIndex i = n - 1 - j;
+        const double scale = alpha + fabs(s[i]);
+        const double a = alpha / scale;
+        const double b = s[i] / scale;
+        const double r = hypot(a, b);
+        c[i] = a / r;
+        s[i] = b / r;
+        alpha = scale * r;
     }
 
     // Apply the transformations to r
-    for (j = 0; j < n; ++j) {
-        xx = 0.0;
-        for (k = 0; k <= j; k++) {
-        	i = j - k;
+    for (mwIndex j = 0; j < n; j++) {
+        double xx = 0.0;
+        for (mwIndex k = 0; k <= j; k++) {
+            const mwIndex i = j - k;
             // Target R_ij to the matrix entry R(i + 1, j + 1)
             // IMPORTANT:
             // R is in the column major notation!
             // (since it was copied from MATLAB)
-            R_ij = R + j * n + i;
+            double *R_ij = R + j * n + i;
 
-            t = xx * c[i] + (*R_ij) * s[i];
+            const double t = xx * c[i] + (*R_ij) * s[i];
             *R_ij = (*R_ij) * c[i] - xx * s[i];
             xx = t;
         }
@@ -241,26 +236,17 @@ int cholesky_downdate_real(const mwSize n, double *R, double *x) {
 }
 
 
-double dot_product_real(const mwIndex size, double *x, double *y) {
+double dot_product_real(const mwIndex size, const double *x, const double *y) {
     // Initialise return value for the dot product
     double res = 0.0;
-    // for-loop counter
-    mwIndex i;
-
-    for (i = 0; i < size; ++i) {
+    for (mwIndex i = 0; i < size; i++) {
         res += x[i] * y[i];
     }
-
     return res;
 }
 
 
-double euclidean_norm_real(mwIndex size, double *x) {
-    // Intermediate variables for the numerical black magic
-    double scale, ssq, abs_curr_x;
-    // for-loop counter
-    mwIndex i;
-
+double euclidean_norm_real(const mwIndex size, const double *x) {
     // Handle trivial cases
     if (size < 1) {
         return 0.0;
@@ -269,14 +255,14 @@ double euclidean_norm_real(mwIndex size, double *x) {
         return fabs(x[0]);
     }
 
-    // Initialise
-    scale = 0.0;
-    ssq = 1.0;
+    // Initialise temp variables
+    double scale = 0.0;
+    double ssq = 1.0;
 
     // Inlined `DLASSQ`
-    for (i = 0; i < size; ++i) {
+    for (mwIndex i = 0; i < size; i++) {
         if (x[i] != 0.0) {
-            abs_curr_x = fabs(x[i]);
+            const double abs_curr_x = fabs(x[i]);
 
             if (scale < abs_curr_x) {
                 ssq = 1.0 + ssq * (scale / abs_curr_x) * (scale / abs_curr_x);
